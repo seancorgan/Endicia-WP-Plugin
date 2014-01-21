@@ -30,8 +30,12 @@
 	display: block; 
 	border: 1px solid #c7c7c7;
 	height: 18px; 
-	margin-bottom: 18px; 
+	margin-bottom: 18px;
 	height: 57px; 
+}
+
+.endicia_form select { 
+	padding-top: 18px; 
 }
 
 .endicia_form h1 { 
@@ -86,8 +90,10 @@ span.endicia-radio-details {
 	width: 187px; 
 	color: white; 
 	font-size: 32px; 
-	padding: 12px; 
-	height: 53px;
+	height: 59px;
 	margin-left: -22px; 
 	margin-top: 15px; 
+}
+
+button, input[type="submit"], input[type="button"], input[type="reset"] {
 }

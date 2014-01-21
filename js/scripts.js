@@ -8,12 +8,19 @@ jQuery(document).ready(function($) {
 		var data = {
 			action: 'endicia_post_form', 
 			formData: $(this).serializeJSON()
-		};
+		}; 
 
-		console.log(ajax_object);
-
+		$('#endicia-form input[type="submit"]').hide();
+		$('.endicia-loading').show(); 
+		
 		jQuery.post(ajax_object.ajax_url, data, function(response) {
-			console.log(response.message);
+			if(response.status == "error") { 
+				$('#endicia-form input[type="submit"]').show(); 
+				$('endicia-loading').show(); 
+				alert(response.message); 
+			} else { 
+				window.location = '/Thanks'; 
+			}
 		}, "json");
 	})
 

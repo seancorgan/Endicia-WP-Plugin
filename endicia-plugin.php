@@ -1,6 +1,4 @@
-<?php ini_set('display_errors',1);
-ini_set('display_startup_errors',1);
-error_reporting(-1);
+<?php
 /**
  * Plugin Name: Endicia Shipping Labels
  * Description: A Wordpress Plugin to generate shipping labels on form submission.
@@ -77,6 +75,8 @@ class Endicia_Plugin {
 		 $new_columns['city'] = "City"; 
 		 $new_columns['state'] = "State"; 
 		 $new_columns['zip'] = "Zip"; 
+		 $new_columns['label'] = "Shipping Label";
+		 $new_columns['tracking_number'] = "Tracking Number";
 
 		return $new_columns; 
 	}
@@ -118,6 +118,23 @@ class Endicia_Plugin {
 
 	        case 'zip' :
 	            echo get_post_meta( $post_id , 'zip' , true ); 
+	        break;
+
+	        case 'tracking_number' :
+	            echo get_post_meta( $post_id , 'tracking_number' , true ); 
+	        break;
+
+	        case 'label' :
+	             $id = get_post_meta( $post_id , 'label' , true ); 
+	             $label = wp_get_attachment_image_src($id, '', true );
+
+	           	 $pos = strpos($label[0],'default.png'); 
+
+	             if($pos === false) { 
+		             $icon = plugins_url( '/Endicia-WP-Plugin/img/shipping-icon.png'); 
+		             echo '<a target="_blank" href="'.$label[0].'"><img src="'.$icon.'"/></a>';
+	             } 
+	             
 	        break;
 
    		}
@@ -197,7 +214,7 @@ class Endicia_Plugin {
 
 	function set_payment_type($payment_type) { 
 		if(empty($payment_type)) { 
-			throw new Exception('From Postal Code cannot be empty');
+			throw new Exception('Payment type cannot be empty');
 		} else { 
 			$this->payment_type = $payment_type; 
 		}
@@ -205,7 +222,7 @@ class Endicia_Plugin {
 
 	function set_shipping_option($shipping_option) { 
 		if(empty($shipping_option)) { 
-			throw new Exception('From Postal Code cannot be empty');
+			throw new Exception('Shipping Option cannot be empty');
 		} else { 
 			$this->shipping_option = $shipping_option; 
 		}
@@ -214,7 +231,7 @@ class Endicia_Plugin {
 	/**
 	 * Ajax for the Phone Form. 
 	 * @todo   Add security like nonce 
-	 * @return JSON 
+	 * @return JSON with status and message
 	 */
 	function endicia_post_form() {  
 		try { 
@@ -230,15 +247,20 @@ class Endicia_Plugin {
 
 			 $post_id = $this->add_phone_tracking_post(); 
 
-		} catch (Exception $e) {
-			return json_encode(array('status' => 'error', 'message' => $e->getMessage())); 
-		}
+			 if($_POST['formData']['shipping_option'] == "print") { 
+			 	$this->process_label($post_id); 
+			 }
 
-		if($this->shipping_option == 'print') { 
-			echo $this->process_label($post_id); 
-		}
+			} catch (Exception $e) {
+				echo json_encode(array('status' => 'error', 'message' => $e->getMessage())); 
+			}
+				echo json_encode(array('status' => 'success'));
+				die();  
 	}
 
+	/**
+	 * Setups up post data info 
+	 */
 	function add_phone_tracking_post() { 
 			$phone_tracking_post = array(
 			  'post_title'    => $this->from_fname.' '.$this->from_lname,
@@ -266,13 +288,77 @@ class Endicia_Plugin {
 	}
 
 	/**
-	 * Creates shipping label from endicia
-	 * @todo   We need to process the label, save the image and tracking number to the database 
-	 * @param  array $data Form array of data
-	 * @return JSON       Json Response 
+	 * Creates shipping label from endicia and stores it into wordpress 
+	 * @param   int The Post ID in Wordpress 
 	 */
-	function process_label($data) { 
+	function process_label($post_id) { 
 		
+		$e = new Endicia($this->RequesterID, $this->AccountID, $this->PassPhrase);
+		    // See Endicia Documentation for correct values.  Array Keys must match XML node name 
+		    $data = array(
+		        'MailClass' => 'Priority', 
+		        'WeightOz' => 5,
+		        'MailpieceShape' => 'Parcel', 
+		        'Description' => 'Electronics', 
+		        'FromName' => $this->from_fname.' '.$this->from_lname,  
+		        'ReturnAddress1' => $this->ReturnAddress1, 
+		        'FromCity' => $this->FromCity, 
+		        'FromState' => $this->FromState, 
+		        'FromPostalCode' => $this->FromPostalCode, 
+		        'FromZIP4' => $this->FromZIP4, 
+		        'ToName' => $this->ToName,
+		        'ToCompany' => $this->ToCompany,
+		        'ToAddress1' => $this->ToAddress1,
+		        'ToCity' => $this->ToCity,
+		        'ToState' => $this->ToState,
+		        'ToPostalCode' => $this->ToPostalCode,
+		        'ToZIP4' => '0004', 
+		        'ToDeliveryPoint' => '00',
+		        'ToPhone' => $this->ToPhone 
+		    ); 
+
+		    $res = $e->request_shipping_label($data); 
+
+		    // Not a success from Endicia
+		    if($res['Status'] != 0) { 
+		    	throw new Exception("Problem getting shipping Label", 1);
+		    }
+
+		    add_post_meta( $post_id, 'tracking_number', $res['TrackingNumber']);
+
+
+		    $upload_dir = wp_upload_dir();
+		    $data = base64_decode($res['Base64LabelImage']);
+
+		    $dir = $upload_dir['path'] .'/labels/'; 
+
+			if (!file_exists($dir)) {
+				  mkdir($dir, 0777, true);
+			}
+
+			$file =  $dir. uniqid() . '.png';
+
+			if(!file_put_contents($file, $data)) { 
+				throw new Exception("Could not Upload Label", 1);
+			} 
+
+		  $wp_filetype = wp_check_filetype(basename($file), null );
+		  $attachment = array(
+		     'guid' => $upload_dir['url'] . '/' . basename( $file ), 
+		     'post_mime_type' => $wp_filetype['type'],
+		     'post_title' => preg_replace( '/\.[^.]+$/', '', basename( $file ) ),
+		     'post_content' => '',
+		     'post_status' => 'inherit'
+		  );
+		  $attach_id = wp_insert_attachment( $attachment, $file, $post_id );
+
+		  add_post_meta( $post_id, 'label', $attach_id);
+
+		  // you must first include the image.php file
+		  // for the function wp_generate_attachment_metadata() to work
+		  require_once( ABSPATH . 'wp-admin/includes/image.php' );
+		  $attach_data = wp_generate_attachment_metadata( $attach_id, $file );
+		  wp_update_attachment_metadata( $attach_id, $attach_data );
 	}
 
 	/**
@@ -316,7 +402,7 @@ class Endicia_Plugin {
 	 * @return string returns html form
 	 */
 	function endicia_shortcode_form ($atts, $content = null) { 
-		
+		$url = site_url(); 
 		$html = '
 			<form class="endicia_form" id="endicia-form" parsley-validate>
 
@@ -413,7 +499,7 @@ class Endicia_Plugin {
 				<span class="endicia-radio-details">the package is a padded envelope, safe, secure and credible.</span>
 
 				<input type="radio" name="shipping_option" value="print" class="endicia-shipping-box"><label>Print my own label & use my own box.</label>
-				
+				<img class="endicia-loading" src="'.$url.'/wp-includes/js/tinymce/themes/advanced/skins/default/img/progress.gif" style="display:none"/>
 				<input type="submit" value="SELL NOW">
 			</div>
 
@@ -532,6 +618,7 @@ class Endicia_Plugin {
 	/**
 	*  Checks to make sure settings are set, displays error if not, run parent constructor if
 	*  they are and sets properties
+	*  @todo  This is very garbage, should use setters 
 	* 
 	*/
 	function check_for_settings() { 
@@ -576,8 +663,8 @@ class Endicia_Plugin {
 		}
 	}
 
-	/**
-	*  Displays Error Message
+	/** 
+	*  Displays Error Messages
 	*/	
 	function settings_missing_message() {
 	    ?>
