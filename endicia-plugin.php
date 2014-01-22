@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Endicia Shipping Labels
  * Description: A Wordpress Plugin to generate shipping labels on form submission.
- * Version: 1.0
+ * Version: 0.9.1
  * Author: Sean Corgan
  * Author URI:  http://www.seancorgan.com
  */
@@ -10,35 +10,38 @@ require_once('endicia.class.php');
 
 class Endicia_Plugin {
 
-		// Endicia Info 
-		public $RequesterID;
-		public $AccountID; 
-		public $PassPhrase;
+	// Endicia Info 
+	public $RequesterID;
+	public $AccountID; 
+	public $PassPhrase;
 
-		// Shipping To 
-		public $ToName;
-		public $ToCompany; 
-		public $ToAddress1; 
-		public $ToCity; 
-		public $ToState; 
-		public $ToPostalCode; 
-		public $ToZIP4; 
-		public $ToPhone;
+	public $error_message; 
 
-		// Shipping From 
-		public $shipping_option; 
-		public $payment_type;  
-		public $from_email; 
-		public $from_fname; 
-		public $from_lname; 
-		public $ReturnAddress1; 
-		public $FromCity; 
-		public $FromState;
-		public $FromPostalCode; 
-		public $FromZIP4 = "0004";  
+	// Shipping To 
+	public $ToName;
+	public $ToCompany; 
+	public $ToAddress1; 
+	public $ToCity; 
+	public $ToState; 
+	public $ToPostalCode; 
+	public $ToZIP4 = "0004"; 
+	public $ToPhone;
+
+	// Shipping From 
+	public $shipping_option; 
+	public $payment_type;  
+	public $from_email; 
+	public $from_fname; 
+	public $from_lname; 
+	public $ReturnAddress1; 
+	public $FromCity; 
+	public $FromState;
+	public $FromPostalCode; 
+	public $FromZIP4 = "0004";  
 
 	function __construct() {
 		register_activation_hook( __FILE__, array( $this, 'sc_rewrite_flush') );
+
 		add_action( 'init', array( $this, 'sc_register_phone_tracking') );
 
 		add_filter('manage_edit-phonetracking_columns', array($this, 'sc_add_pt_column_headers'));
@@ -54,10 +57,11 @@ class Endicia_Plugin {
 		endif; 
 
 		add_action( 'admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+		
 		add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
 
-
 		add_action( 'wp_ajax_endicia_post_form', array($this, 'endicia_post_form') );
+
 		add_action( 'wp_ajax_nopriv_endicia_post_form', array($this, 'endicia_post_form') );
 	}
 
@@ -153,7 +157,10 @@ class Endicia_Plugin {
 		wp_localize_script( 'ajax-script', 'ajax_object',
 	            array( 'ajax_url' => admin_url( 'admin-ajax.php' )) );
 	}
-
+	/**
+	 * sets emails
+	 * @param string $email email address 
+	 */
 	function set_from_email($email) { 
 		$foo = filter_var($email, FILTER_VALIDATE_EMAIL);  
 
@@ -163,50 +170,70 @@ class Endicia_Plugin {
 			$this->from_email = $email; 
 		}
 	}
-
+	/**
+	 * Sets return address
+	 * @param string $ReturnAddress1 the address to return the package to
+	 */
 	function set_ReturnAddress1($ReturnAddress1) { 
 		if(empty($ReturnAddress1)) { 
-			throw new Exception('To Address must be set');
+			throw new Exception('Endicia To Address must be set');
 		} else { 
 			$this->ReturnAddress1 = $ReturnAddress1; 
 		}
 	}
-
+	/**
+	 * The sender of the package
+	 * @param string $from_fname 
+	 */
 	function set_from_fname($from_fname) { 
 		if(empty($from_fname)) { 
-			throw new Exception('First name cannot be empty');
+			throw new Exception('Endicia First name cannot be empty');
 		} else { 
 			$this->from_fname = $from_fname; 
 		}
 	}
-
+	/**
+	 * Sets the from the lname
+	 * @param string $from_lname the last name of the sender
+	 */
 	function set_from_lname($from_lname) { 
 		if(empty($from_lname)) { 
-			throw new Exception('Last name cannot be empty');
+			throw new Exception('Endicia Last name cannot be empty');
 		} else { 
 			$this->from_lname = $from_lname; 
 		}
 	}
-
+	/**
+	 * Sets the from city property 
+	 * @param string $FromCity The from city of the sender
+	 */
 	function set_FromCity($FromCity) { 
 		if(empty($FromCity)) { 
-			throw new Exception('From City cannot be empty');
+			throw new Exception('Endicia From City cannot be empty');
 		} else { 
 			$this->FromCity = $FromCity; 
 		}
 	}
 
+	/**
+	 * Sets the from state of the sender
+	 * @param string $FromState 
+	 */
 	function set_FromState($FromState) { 
 		if(empty($FromState)) { 
-			throw new Exception('From State cannot be empty');
+			throw new Exception('Endicia From State cannot be empty');
 		} else { 
 			$this->FromState = $FromState; 
 		}
 	}
 
+	/**
+	 * The p
+	 * @param [type] $FromPostalCode [description]
+	 */
 	function set_FromPostalCode($FromPostalCode) { 
 		if(empty($FromPostalCode)) { 
-			throw new Exception('From Postal Code cannot be empty');
+			throw new Exception('Endicia From Postal Code cannot be empty');
 		} else { 
 			$this->FromPostalCode = $FromPostalCode; 
 		}
@@ -214,7 +241,7 @@ class Endicia_Plugin {
 
 	function set_payment_type($payment_type) { 
 		if(empty($payment_type)) { 
-			throw new Exception('Payment type cannot be empty');
+			throw new Exception('Endicia Payment type cannot be empty');
 		} else { 
 			$this->payment_type = $payment_type; 
 		}
@@ -222,11 +249,92 @@ class Endicia_Plugin {
 
 	function set_shipping_option($shipping_option) { 
 		if(empty($shipping_option)) { 
-			throw new Exception('Shipping Option cannot be empty');
+			throw new Exception('Endicia Shipping Option cannot be empty');
 		} else { 
 			$this->shipping_option = $shipping_option; 
 		}
 	}
+
+	function set_RequesterID($RequesterID) { 
+		if(empty($RequesterID)) { 
+			throw new Exception('Endicia RequesterID Not Set');
+		} else { 
+			$this->RequesterID = $RequesterID; 
+		}
+	}
+
+	function set_AccountID($AccountID) { 
+		if(empty($AccountID)) { 
+			throw new Exception('Endicia AccountID is not Set');
+		} else { 
+			$this->AccountID = $AccountID; 
+		}
+	}
+
+	function set_PassPhrase($PassPhrase) { 
+		if(empty($PassPhrase)) { 
+			throw new Exception('Endicia PassPhrase Not Set');
+		} else { 
+			$this->PassPhrase = $PassPhrase; 
+		}
+	}
+
+	function set_ToName($ToName) { 
+		if(empty($ToName)) { 
+			throw new Exception('Endicia Shipping TO Name Not Set');
+		} else { 
+			$this->ToName = $ToName; 
+		}
+	}
+
+	function set_ToCompany($ToCompany) { 
+		if(empty($ToCompany)) { 
+			throw new Exception('Endicia Company Name not Set');
+		} else { 
+			$this->ToCompany = $ToCompany; 
+		}
+	}
+
+	function set_ToAddress1($ToAddress1) { 
+		if(empty($ToAddress1)) { 
+			throw new Exception('Endicia To Address1 not Set');
+		} else { 
+			$this->ToAddress1 = $ToAddress1; 
+		}
+	}
+
+	function set_ToCity($ToCity) { 
+		if(empty($ToCity)) { 
+			throw new Exception('Endicia To City not Set');
+		} else { 
+			$this->ToCity = $ToCity; 
+		}
+	}
+
+	function set_ToState($ToState) { 
+		if(empty($ToState)) { 
+			throw new Exception('Endicia To State not Set');
+		} else { 
+			$this->ToState = $ToState; 
+		}
+	}
+
+	function set_ToPostalCode($ToPostalCode) { 
+		if(empty($ToPostalCode)) { 
+			throw new Exception('Endicia To Zip not Set');
+		} else { 
+			$this->ToPostalCode = $ToPostalCode; 
+		}
+	}
+
+	function set_ToPhone($ToPhone) { 
+		if(empty($ToPhone)) { 
+			throw new Exception('Endicia To Phone not Set');
+		} else { 
+			$this->ToPhone = $ToPhone; 
+		}
+	}
+
 
 	/**
 	 * Ajax for the Phone Form. 
@@ -616,10 +724,7 @@ class Endicia_Plugin {
 	}
 
 	/**
-	*  Checks to make sure settings are set, displays error if not, run parent constructor if
-	*  they are and sets properties
-	*  @todo  This is very garbage, should use setters 
-	* 
+	* Sets TO properties for shipping 
 	*/
 	function check_for_settings() { 
 		$RequesterID = get_option('RequesterID');
@@ -631,35 +736,23 @@ class Endicia_Plugin {
 		$ToCity = get_option('ToCity');
 		$ToState = get_option('ToState');
 		$ToPostalCode = get_option('ToPostalCode');
-		$ToZIP4 = get_option('ToZIP4');
 		$ToPhone = get_option('ToPhone'); 
 
-		if(empty($RequesterID) || 
-		   empty($AccountID) || 
-		   empty($PassPhrase) ||
-		   empty($ToName) ||
-		   empty($ToCompany) ||
-		   empty($ToAddress1) ||
-		   empty($ToCity) ||
-		   empty($ToState) ||
-		   empty($ToPostalCode) || 
-		   empty($ToPhone) 
-		   	) { 
-			add_action( 'admin_notices', array($this, 'settings_missing_message') );
-		} else {  
-			$this->RequesterID = $RequesterID;
-			$this->AccountID = $AccountID;
-			$this->PassPhrase = $PassPhrase;
-			$this->ToName = $ToName;
-			$this->ToCompany = $ToCompany;
-			$this->ToAddress1 = $ToAddress1;
-			$this->ToCity = $ToCity;
-			$this->ToState = $ToState;
-			$this->ToPostalCode = $ToPostalCode;
-			$this->ToZIP4 = $ToZIP4;
-			$this->ToPhone = $ToPhone;
+		try {
+			$this->set_RequesterID($RequesterID);
+			$this->set_AccountID($AccountID);
+			$this->set_PassPhrase($PassPhrase);
+			$this->set_ToName($ToName);
+			$this->set_ToCompany($ToCompany);
+			$this->set_ToAddress1($ToAddress1);
+			$this->set_ToCity($ToCity);
+			$this->set_ToState($ToState);
+			$this->set_ToPostalCode($ToPostalCode);
+			$this->set_ToPhone($ToPhone);
 
-			$endicia_client = new Endicia($this->RequesterID, $this->AccountID, $this->PassPhrase);  
+		} catch (Exception $e) {
+			$this->error_message = $e->getMessage(); 
+		 	add_action( 'admin_notices', array($this, 'settings_missing_message'));
 		}
 	}
 
@@ -669,7 +762,7 @@ class Endicia_Plugin {
 	function settings_missing_message() {
 	    ?>
 	    <div class="error">
-	        <p><?php _e( 'Please make sure you have all settings filled out for Endicia!', 'sc-endicia' ); ?></p>
+	        <p><?php _e($this->error_message); ?></p>
 	    </div>
 	    <?php
 	}
