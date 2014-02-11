@@ -1,4 +1,5 @@
 <?php require 'vendor/autoload.php';
+error_reporting(0); // Turn off all error reporting
 use Guzzle\Http\Client;
 
 class Endicia { 
@@ -51,6 +52,7 @@ class Endicia {
 	function request_shipping_label($data) { 
 		// Note you may want to associate this in some other way, like with a database ID.  
 		$this->PartnerTransactionID = substr(uniqid(rand(), true), 0, 10); 
+		libxml_use_internal_errors(false); 
 
 		$xml = '<LabelRequest Test="YES" LabelType="Default" LabelSize="4X6" ImageFormat="GIF">
 					<RequesterID>'.$this->RequesterID.'</RequesterID>
@@ -92,7 +94,9 @@ class Endicia {
 		$data = $response->getBody();
 
 		// Note we could not use Guzzle XML method becuase Endicia does not return valid XML it seems
+		libxml_use_internal_errors(false);
 		$sxe = new SimpleXMLElement($data);
+		libxml_use_internal_errors(false);
 
 		if($sxe->status == 0) { 
 			$return_data = array(); 
