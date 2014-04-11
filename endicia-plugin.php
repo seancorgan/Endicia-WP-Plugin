@@ -890,12 +890,12 @@ class Endicia_Plugin {
 	    if(!empty($_POST['fields']['field_530126d9a8999'])) { 
 	    	$current_field = get_field('field_530126d9a8999', $_POST['post_ID']);
 	    	if($current_field != $_POST['fields']['field_530126d9a8999']) { 
-	    		 $this->send_status_update($_POST['fields']['field_533894e5e04f2'], $_POST['post_ID'], $_POST['fields']['field_530126d9a8999']); 
+	    		 $this->send_status_update($_POST['fields']['field_533894e5e04f2'], $_POST['post_ID'], $_POST['fields']['field_530126d9a8999'], $_POST['fields']['field_53476d2d72037']); 
 	    	}
 	    }  
 	}
 
-	function send_status_update($email, $order_id, $status){ 
+	function send_status_update($email, $order_id, $status, $rejected_message){ 
 		$to = $email; 
 		$subject ="There was a status update on you're order# ".$order_id;
 
@@ -909,10 +909,12 @@ class Endicia_Plugin {
 		if($status != "Device Rejected - Awaiting Customer Offer Approval") { 
 			$message .= 'Thanks, you\'re order is now '.$status; 
 		} else { 
-			$message .= "Sorry youre device was rejected"; 
+			$message .= "Sorry you're device was rejected";
+			$message .= "Rejected Instructions:"; 
+			$message .= $rejected_message;  
 		}
 
-		$message .= "</body></html>"; 
+		$message .= "</body></html>";
 
 		mail($to, $subject, $message, $headers);
 	}
