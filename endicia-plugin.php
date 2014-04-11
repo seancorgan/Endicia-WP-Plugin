@@ -15,6 +15,7 @@ class Endicia_Plugin {
 	public $AccountID; 
 	public $PassPhrase;
 
+
 	public $error_message; 
 
 	// Shipping To 
@@ -37,7 +38,11 @@ class Endicia_Plugin {
 	public $FromCity; 
 	public $FromState;
 	public $FromPostalCode; 
-	public $FromZIP4 = "0004";  
+	public $FromZIP4 = "0004"; 
+
+	public $phone; 
+	public $carrier;
+	public $quote;  
 
 	function __construct() {
 		register_activation_hook( __FILE__, array( $this, 'sc_rewrite_flush') );
@@ -81,7 +86,9 @@ class Endicia_Plugin {
 		 $new_columns['zip'] = "Zip"; 
 		 $new_columns['label'] = "Shipping Label";
 		 $new_columns['tracking_number'] = "Tracking Number";
-
+		 $new_columns['phone'] = "Phone";
+		 $new_columns['carrier'] = "Carrier";
+		 $new_columns['quote'] = "Quote";
 		return $new_columns; 
 	}
 
@@ -127,6 +134,22 @@ class Endicia_Plugin {
 	        case 'tracking_number' :
 	            echo get_post_meta( $post_id , 'tracking_number' , true ); 
 	        break;
+
+	        case 'phone' :
+	            echo get_post_meta( $post_id , 'phone' , true ); 
+	        break;
+
+	        case 'carrier' :
+	            echo get_post_meta( $post_id , 'carrier' , true ); 
+	        break;
+
+	        case 'quote' :
+	         		$quote = get_post_meta( $post_id , 'quote' , true );
+	         		if(!empty($quote)) { 
+	         			echo '$'.$quote; 
+	         		} 
+	        break;
+
 
 	        case 'label' :
 	             $id = get_post_meta( $post_id , 'label' , true ); 
@@ -335,6 +358,31 @@ class Endicia_Plugin {
 		}
 	}
 
+	function set_phone($phone) { 
+		if(empty($phone)) { 
+			throw new Exception('Phone not set');
+		} else { 
+			$this->phone = $phone; 
+		}
+	}
+
+	function set_carrier($carrier) { 
+		if(empty($carrier)) { 
+			throw new Exception('Carrier Not set');
+		} else { 
+			$this->carrier = $carrier; 
+		}
+	}
+
+
+	function set_quote($quote) { 
+		if(empty($quote)) { 
+			throw new Exception('Quote value Not set');
+		} else { 
+			$this->quote = $quote; 
+		}
+	}
+
 
 	/**
 	 * Ajax for the Phone Form. 
@@ -352,6 +400,9 @@ class Endicia_Plugin {
 			 $this->set_FromCity($_POST['formData']['city']); 
 			 $this->set_FromState($_POST['formData']['state']);
 			 $this->set_FromPostalCode($_POST['formData']['zip']);
+			 $this->set_phone($_POST['formData']['phone']);
+			 $this->set_carrier($_POST['formData']['carrier']);
+			 $this->set_quote($_POST['formData']['quote']);
 
 			 $post_id = $this->add_phone_tracking_post(); 
 
@@ -362,7 +413,8 @@ class Endicia_Plugin {
 			} catch (Exception $e) {
 				echo json_encode(array('status' => 'error', 'message' => $e->getMessage())); 
 			}
-				echo json_encode(array('status' => 'success'));
+				$redirect_link = get_permalink(138);
+				echo json_encode(array('status' => 'success', 'redirect' => $redirect_link));
 				die();  
 	}
 
@@ -388,6 +440,10 @@ class Endicia_Plugin {
 				add_post_meta( $post_id, 'city', $this->FromCity );
 				add_post_meta( $post_id, 'state', $this->FromState );
 				add_post_meta( $post_id, 'zip', $this->FromPostalCode );
+				add_post_meta( $post_id, 'phone', $this->phone );
+				add_post_meta( $post_id, 'carrier', $this->carrier );
+				add_post_meta( $post_id, 'quote', $this->quote ); 
+
 			} else { 
 				throw new Exception("Problem adding post", 1);
 			}
@@ -467,6 +523,10 @@ class Endicia_Plugin {
 		  require_once( ABSPATH . 'wp-admin/includes/image.php' );
 		  $attach_data = wp_generate_attachment_metadata( $attach_id, $file );
 		  wp_update_attachment_metadata( $attach_id, $attach_data );
+
+		  $label = wp_get_attachment_url( $attach_id);
+		  session_start(); 
+		  $_SESSION['label'] = $label; 
 	}
 
 	/**
@@ -511,22 +571,28 @@ class Endicia_Plugin {
 	 */
 	function endicia_shortcode_form ($atts, $content = null) { 
 		$url = site_url(); 
-		$html = '
-			<form class="endicia_form" id="endicia-form" parsley-validate>
+		if(isset($_GET['id'])) {
+			$phone_title = get_the_title($_GET['id']); 
+		} 
 
+		$html = '
+			<form class="endicia_form" id="endicia-form" parsley-validate novalidate>
+				<input type="hidden" name="carrier" value="'.$_GET['carrier'].'" > 
+				<input type="hidden" name="phone" value="'.$phone_title.'"> 
+				<input type="hidden" name="quote" value="'.$_GET['quote'].'">  
 				<div class="endicia-left-block">
 				<h1>Your Personal Information</h1>
-				<input type="email" class="endicia-email" required parsley-trigger="change" name="email" placeholder="Email Address">
+				<input type="email" class="endicia-email" parsley-required="true" name="email" placeholder="Email Address">
 
-				<input type="text" class="endicia-fname" required name="first_name" placeholder="First Name">
+				<input class="endicia-fname" data-validation-minlength="2" name="first_name" placeholder="First Name" parsley-required="true" />
 
-				<input type="text" class="endicia-lname" required name="last_name" placeholder="Last Name">
+				<input type="text" class="endicia-lname" name="last_name" placeholder="Last Name" parsley-required="true" />
 
-				<input type="text" class="endicia-address1" required  name="address1" placeholder="Address Line 1">
+				<input type="text" class="endicia-address1"  name="address1" placeholder="Address Line 1" parsley-required="true" />
 
 				<input type="text" class="endicia-address2" name="address2" placeholder="Address Line 2" >
 
-				<input type="text" name="city" class="endicia-city" required placeholder="City">
+				<input type="text" name="city" class="endicia-city" placeholder="City" required>
 
 				<select name="state" class="endicia-state" required> 
 					<option value="" selected="selected">Select a State</option> 
