@@ -1,3 +1,4 @@
+
 <?php
 /**
  * Plugin Name: Endicia Shipping Labels
@@ -70,14 +71,17 @@ class Endicia_Plugin {
 		add_action( 'wp_ajax_nopriv_endicia_post_form', array($this, 'endicia_post_form') );
 	}
 
-	/**
+/**
 	 * Adds Column Header names
 	 * @return array column names 
 	 */
 	function sc_add_pt_column_headers() { 
-		$new_columns['id'] = __('ID');
+		 $new_columns['cb'] = '';
+		 $new_columns['id'] = __('ID');
 		 $new_columns['title'] = "Name";
-		 $new_columns['email'] = "Email";
+		 $new_columns['date'] = "Date Created";
+		 $new_columns['status'] = __('Status');
+		 $new_columns['email'] = "Email or PayPal ID";
 		 $new_columns['shipping_option'] = "Shipping Option"; 
 		 $new_columns['payment_type'] = "Payment Type"; 
 		 $new_columns['address1'] = "Address1"; 
@@ -102,6 +106,10 @@ class Endicia_Plugin {
 	        case 'id' :
 	           echo $post_id; 
 	        break; 
+
+	        case 'date' :
+	            echo get_post_meta( $post_id , 'post_date' , true ); 
+	        break;
 
 	        case 'email' :
 	            echo get_post_meta( $post_id , 'email' , true ); 
@@ -139,6 +147,10 @@ class Endicia_Plugin {
 	            echo get_post_meta( $post_id , 'phone' , true ); 
 	        break;
 
+	        case 'status' :
+	            the_field('status', $post_id); 
+	        break;
+
 	        case 'carrier' :
 	            echo get_post_meta( $post_id , 'carrier' , true ); 
 	        break;
@@ -172,6 +184,8 @@ class Endicia_Plugin {
 	*/ 
 	function enqueue_scripts($hook) {
 		wp_enqueue_script( 'parsley', plugins_url( '/js/parsley.js', __FILE__ ), array('jquery') );
+
+		wp_enqueue_script( 'placeholder', plugins_url( '/js/placeholder.js', __FILE__ ), array('jquery') );
 
 		wp_enqueue_script( 'ajax-script', plugins_url( '/js/scripts.js', __FILE__ ), array('jquery') );
 
@@ -390,7 +404,9 @@ class Endicia_Plugin {
 	 * @return JSON with status and message
 	 */
 	function endicia_post_form() {  
+		
 		try { 
+
 			 $this->set_payment_type($_POST['formData']['payment_type']);
 			 $this->set_shipping_option($_POST['formData']['shipping_option']);
 		     $this->set_from_fname($_POST['formData']['first_name']);
@@ -771,6 +787,9 @@ class Endicia_Plugin {
 
 		<?php 
 	}
+
+
+	
 
 	/**
 	*  Registers Plugin Settings

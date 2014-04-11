@@ -29,9 +29,11 @@
 	width: 100%; 
 	display: block; 
 	border: 1px solid #c7c7c7;
-	height: 18px; 
-	margin-bottom: 18px;
-	height: 57px; 
+	margin-bottom: 10px;
+	padding: 10px 5px;
+}
+.endicia_form select {
+	color: #757575;
 }
 
 .endicia_form select { 

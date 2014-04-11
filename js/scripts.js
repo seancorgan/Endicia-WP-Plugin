@@ -6,11 +6,11 @@ jQuery(document).ready(function($) {
 	$( '#endicia-form' ).parsley( 'addListener', {
 	    onFormValidate: function ( isFormValid, e, form ) {
 	    	if(isFormValid === true) { 
-	    		// e.preventDefault(); 
+	    		 e.preventDefault(); 
 
 				var data = {
 					action: 'endicia_post_form', 
-					formData: $(form).serializeJSON()
+					formData: $('#endicia-form').serializeJSON()
 				}; 
 
 				$('#endicia-form input[type="submit"]').hide();
@@ -34,9 +34,4 @@ jQuery(document).ready(function($) {
 		}
 	}); 	 
 
-
-	
-	$('#endicia-form').on('submit', function(e) {
-		
-	})
 });
