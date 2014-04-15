@@ -1,3 +1,4 @@
+
 <?php
 /**
  * Plugin Name: Endicia Shipping Labels
@@ -15,16 +16,17 @@ class Endicia_Plugin {
 	public $AccountID; 
 	public $PassPhrase;
 
+
 	public $error_message; 
 
 	// Shipping To 
 	public $ToName;
-	public $ToCompany; 
-	public $ToAddress1; 
-	public $ToCity; 
-	public $ToState; 
-	public $ToPostalCode; 
-	public $ToZIP4 = "0004"; 
+	public $ToCompany;
+	public $ToAddress1;
+	public $ToCity;
+	public $ToState;
+	public $ToPostalCode;
+	public $ToZIP4 = "0004";
 	public $ToPhone;
 
 	// Shipping From 
@@ -37,7 +39,11 @@ class Endicia_Plugin {
 	public $FromCity; 
 	public $FromState;
 	public $FromPostalCode; 
-	public $FromZIP4 = "0004";  
+	public $FromZIP4 = "0004"; 
+
+	public $phone; 
+	public $carrier;
+	public $quote;  
 
 	function __construct() {
 		register_activation_hook( __FILE__, array( $this, 'sc_rewrite_flush') );
@@ -63,16 +69,21 @@ class Endicia_Plugin {
 		add_action( 'wp_ajax_endicia_post_form', array($this, 'endicia_post_form') );
 
 		add_action( 'wp_ajax_nopriv_endicia_post_form', array($this, 'endicia_post_form') );
+
+		add_action( 'save_post', array($this, 'save_phonetracking' ) );
 	}
 
-	/**
+/**
 	 * Adds Column Header names
 	 * @return array column names 
 	 */
 	function sc_add_pt_column_headers() { 
-		$new_columns['id'] = __('ID');
+		 $new_columns['cb'] = '';
+		 $new_columns['id'] = __('ID');
 		 $new_columns['title'] = "Name";
-		 $new_columns['email'] = "Email";
+		 $new_columns['date'] = "Date Created";
+		 $new_columns['status'] = __('Status');
+		 $new_columns['email'] = "Email or PayPal ID";
 		 $new_columns['shipping_option'] = "Shipping Option"; 
 		 $new_columns['payment_type'] = "Payment Type"; 
 		 $new_columns['address1'] = "Address1"; 
@@ -81,7 +92,9 @@ class Endicia_Plugin {
 		 $new_columns['zip'] = "Zip"; 
 		 $new_columns['label'] = "Shipping Label";
 		 $new_columns['tracking_number'] = "Tracking Number";
-
+		 $new_columns['phone'] = "Phone";
+		 $new_columns['carrier'] = "Carrier";
+		 $new_columns['quote'] = "Quote";
 		return $new_columns; 
 	}
 
@@ -95,6 +108,10 @@ class Endicia_Plugin {
 	        case 'id' :
 	           echo $post_id; 
 	        break; 
+
+	        case 'date' :
+	            echo get_post_meta( $post_id , 'post_date' , true ); 
+	        break;
 
 	        case 'email' :
 	            echo get_post_meta( $post_id , 'email' , true ); 
@@ -128,6 +145,26 @@ class Endicia_Plugin {
 	            echo get_post_meta( $post_id , 'tracking_number' , true ); 
 	        break;
 
+	        case 'phone' :
+	            echo get_post_meta( $post_id , 'phone' , true ); 
+	        break;
+
+	        case 'status' :
+	            the_field('status', $post_id); 
+	        break;
+
+	        case 'carrier' :
+	            echo get_post_meta( $post_id , 'carrier' , true ); 
+	        break;
+
+	        case 'quote' :
+	         		$quote = get_post_meta( $post_id , 'quote' , true );
+	         		if(!empty($quote)) { 
+	         			echo '$'.$quote; 
+	         		} 
+	        break;
+
+
 	        case 'label' :
 	             $id = get_post_meta( $post_id , 'label' , true ); 
 	             $label = wp_get_attachment_image_src($id, '', true );
@@ -149,6 +186,8 @@ class Endicia_Plugin {
 	*/ 
 	function enqueue_scripts($hook) {
 		wp_enqueue_script( 'parsley', plugins_url( '/js/parsley.js', __FILE__ ), array('jquery') );
+
+		wp_enqueue_script( 'placeholder', plugins_url( '/js/placeholder.js', __FILE__ ), array('jquery') );
 
 		wp_enqueue_script( 'ajax-script', plugins_url( '/js/scripts.js', __FILE__ ), array('jquery') );
 
@@ -335,6 +374,31 @@ class Endicia_Plugin {
 		}
 	}
 
+	function set_phone($phone) { 
+		if(empty($phone)) { 
+			throw new Exception('Phone not set');
+		} else { 
+			$this->phone = $phone; 
+		}
+	}
+
+	function set_carrier($carrier) { 
+		if(empty($carrier)) { 
+			throw new Exception('Carrier Not set');
+		} else { 
+			$this->carrier = $carrier; 
+		}
+	}
+
+
+	function set_quote($quote) { 
+		if(empty($quote)) { 
+			throw new Exception('Quote value Not set');
+		} else { 
+			$this->quote = $quote; 
+		}
+	}
+
 
 	/**
 	 * Ajax for the Phone Form. 
@@ -342,28 +406,61 @@ class Endicia_Plugin {
 	 * @return JSON with status and message
 	 */
 	function endicia_post_form() {  
+		
 		try { 
-			 $this->set_payment_type($_POST['formData']['payment_type']);
-			 $this->set_shipping_option($_POST['formData']['shipping_option']);
-		     $this->set_from_fname($_POST['formData']['first_name']);
-			 $this->set_from_lname($_POST['formData']['last_name']);
-		 	 $this->set_from_email($_POST['formData']['email']); 
-			 $this->set_ReturnAddress1($_POST['formData']['address1']);
-			 $this->set_FromCity($_POST['formData']['city']); 
-			 $this->set_FromState($_POST['formData']['state']);
-			 $this->set_FromPostalCode($_POST['formData']['zip']);
+			$this->set_payment_type($_POST['formData']['payment_type']);
+			$this->set_shipping_option($_POST['formData']['shipping_option']);
+			$this->set_from_fname($_POST['formData']['first_name']);
+			$this->set_from_lname($_POST['formData']['last_name']);
+			$this->set_from_email($_POST['formData']['email']); 
+			$this->set_ReturnAddress1($_POST['formData']['address1']);
+			$this->set_FromCity($_POST['formData']['city']); 
+			$this->set_FromState($_POST['formData']['state']);
+			$this->set_FromPostalCode($_POST['formData']['zip']);
+			$this->set_phone($_POST['formData']['phone']);
+			$this->set_carrier($_POST['formData']['carrier']);
+			$this->set_quote($_POST['formData']['quote']);
 
-			 $post_id = $this->add_phone_tracking_post(); 
+ 			$post_id = $this->add_phone_tracking_post(); 
 
-			 if($_POST['formData']['shipping_option'] == "print") { 
+			if($_POST['formData']['shipping_option'] == "print") { 
 			 	$this->process_label($post_id); 
-			 }
-
-			} catch (Exception $e) {
-				echo json_encode(array('status' => 'error', 'message' => $e->getMessage())); 
 			}
-				echo json_encode(array('status' => 'success'));
-				die();  
+
+		} catch (Exception $e) {
+			echo json_encode(array('status' => 'error', 'message' => $e->getMessage())); 
+		}
+		
+		$redirect_link = get_permalink(138);
+
+		if(!empty($_POST['formData']['email'])) { 
+			$this->email_on_success($_POST['formData']['email'], $post_id);
+		}
+
+		echo json_encode(array('status' => 'success', 'redirect' => $redirect_link));
+		die();  
+	}
+
+	
+	/**
+	 * Send email to client on completing Phone Order
+	 * @param  string $email    email of the client
+	 * @param  int $order_id id of the order
+	 */
+	function email_on_success($email, $order_id) { 
+		$to = $email; 
+		$subject ="Thanks for you're order";
+
+		$headers  = 'MIME-Version: 1.0' . "\r\n";
+		$headers .= 'Content-type: text/html; charset=iso-8859-1' . "\r\n";
+		$headers .= 'To: '.strip_tags($email) . "\r\n";
+		$headers .= 'From: CBB <cbb@cbb.com>' . "\r\n";
+
+		$message = '<html><body>';
+		$message .= 'Thanks, you\'re order #'.$order_id.' it is processing'; 
+		$message .= "</body></html>"; 
+
+		mail($to, $subject, $message, $headers);
 	}
 
 	/**
@@ -388,6 +485,10 @@ class Endicia_Plugin {
 				add_post_meta( $post_id, 'city', $this->FromCity );
 				add_post_meta( $post_id, 'state', $this->FromState );
 				add_post_meta( $post_id, 'zip', $this->FromPostalCode );
+				add_post_meta( $post_id, 'phone', $this->phone );
+				add_post_meta( $post_id, 'carrier', $this->carrier );
+				add_post_meta( $post_id, 'quote', $this->quote ); 
+
 			} else { 
 				throw new Exception("Problem adding post", 1);
 			}
@@ -467,6 +568,10 @@ class Endicia_Plugin {
 		  require_once( ABSPATH . 'wp-admin/includes/image.php' );
 		  $attach_data = wp_generate_attachment_metadata( $attach_id, $file );
 		  wp_update_attachment_metadata( $attach_id, $attach_data );
+
+		  $label = wp_get_attachment_url( $attach_id);
+		  session_start(); 
+		  $_SESSION['label'] = $label; 
 	}
 
 	/**
@@ -487,19 +592,19 @@ class Endicia_Plugin {
 	        'capability_type' => 'post',
 	        'capabilities' => array(),
 	        'labels' => array(
-	            'name' => __( 'Phone Tracking', 'Phone Tracking' ),
-	            'singular_name' => __( 'Phone Tracking', 'Phone Tracking' ),
-	            'add_new' => __( 'Add New Phone Tracking', 'Phone Tracking' ),
-	            'add_new_item' => __( 'Add New Phone Tracking', 'Phone Tracking' ),
-	            'edit_item' => __( 'Edit Phone Tracking', 'Phone Tracking' ),
-	            'new_item' => __( 'New Phone Tracking', 'Phone Tracking' ),
-	            'all_items' => __( 'All Phone Tracking', 'Phone Tracking' ),
-	            'view_item' => __( 'View Phone Tracking', 'Phone Tracking' ),
-	            'search_items' => __( 'Search Phone Tracking', 'Phone Tracking' ),
-	            'not_found' =>  __( 'No Phone Tracking found', 'Phone Tracking' ),
-	            'not_found_in_trash' => __( 'No Phone Tracking found in Trash', 'Phone Tracking' ),
+	            'name' => __( 'Orders', 'Phone Tracking' ),
+	            'singular_name' => __( 'Orders', 'Phone Tracking' ),
+	            'add_new' => __( 'Add New Orders', 'Phone Tracking' ),
+	            'add_new_item' => __( 'Add New Orders', 'Phone Tracking' ),
+	            'edit_item' => __( 'Edit Orders', 'Phone Tracking' ),
+	            'new_item' => __( 'New Orders', 'Phone Tracking' ),
+	            'all_items' => __( 'All Orders', 'Phone Tracking' ),
+	            'view_item' => __( 'View Orders', 'Phone Tracking' ),
+	            'search_items' => __( 'Search Orders', 'Phone Tracking' ),
+	            'not_found' =>  __( 'No Orders found', 'Phone Tracking' ),
+	            'not_found_in_trash' => __( 'No Orders found in Trash', 'Phone Tracking' ),
 	            'parent_item_colon' => '',
-	            'menu_name' => 'Phone Tracking'
+	            'menu_name' => 'Orders'
 	        )
 	    ) );
 	}
@@ -511,22 +616,28 @@ class Endicia_Plugin {
 	 */
 	function endicia_shortcode_form ($atts, $content = null) { 
 		$url = site_url(); 
-		$html = '
-			<form class="endicia_form" id="endicia-form" parsley-validate>
+		if(isset($_GET['id'])) {
+			$phone_title = get_the_title($_GET['id']); 
+		} 
 
+		$html = '
+			<form class="endicia_form" id="endicia-form" parsley-validate novalidate>
+				<input type="hidden" name="carrier" value="'.$_GET['carrier'].'" > 
+				<input type="hidden" name="phone" value="'.$phone_title.'"> 
+				<input type="hidden" name="quote" value="'.$_GET['quote'].'">  
 				<div class="endicia-left-block">
 				<h1>Your Personal Information</h1>
-				<input type="email" class="endicia-email" required parsley-trigger="change" name="email" placeholder="Email Address">
+				<input type="email" class="endicia-email" parsley-required="true" name="email" placeholder="Email Address">
 
-				<input type="text" class="endicia-fname" required name="first_name" placeholder="First Name">
+				<input class="endicia-fname" data-validation-minlength="2" name="first_name" placeholder="First Name" parsley-required="true" />
 
-				<input type="text" class="endicia-lname" required name="last_name" placeholder="Last Name">
+				<input type="text" class="endicia-lname" name="last_name" placeholder="Last Name" parsley-required="true" />
 
-				<input type="text" class="endicia-address1" required  name="address1" placeholder="Address Line 1">
+				<input type="text" class="endicia-address1"  name="address1" placeholder="Address Line 1" parsley-required="true" />
 
 				<input type="text" class="endicia-address2" name="address2" placeholder="Address Line 2" >
 
-				<input type="text" name="city" class="endicia-city" required placeholder="City">
+				<input type="text" name="city" class="endicia-city" placeholder="City" required>
 
 				<select name="state" class="endicia-state" required> 
 					<option value="" selected="selected">Select a State</option> 
@@ -706,6 +817,7 @@ class Endicia_Plugin {
 		<?php 
 	}
 
+
 	/**
 	*  Registers Plugin Settings
 	*/
@@ -765,6 +877,46 @@ class Endicia_Plugin {
 	        <p><?php _e($this->error_message); ?></p>
 	    </div>
 	    <?php
+	}
+
+	/**
+	 * Checks to see if we have a status update on a phonetracking order.
+	 */
+	function save_phonetracking() { 
+		if ( 'phonetracking' != $_POST['post_type'] ) {
+	        return;
+	    } 
+
+	    if(!empty($_POST['fields']['field_530126d9a8999'])) { 
+	    	$current_field = get_field('field_530126d9a8999', $_POST['post_ID']);
+	    	if($current_field != $_POST['fields']['field_530126d9a8999']) { 
+	    		 $this->send_status_update($_POST['fields']['field_533894e5e04f2'], $_POST['post_ID'], $_POST['fields']['field_530126d9a8999'], $_POST['fields']['field_53476d2d72037']); 
+	    	}
+	    }  
+	}
+
+	function send_status_update($email, $order_id, $status, $rejected_message){ 
+		$to = $email; 
+		$subject ="There was a status update on you're order# ".$order_id;
+
+		$headers  = 'MIME-Version: 1.0' . "\r\n";
+		$headers .= 'Content-type: text/html; charset=iso-8859-1' . "\r\n";
+		$headers .= 'To: '.strip_tags($email) . "\r\n";
+		$headers .= 'From: CBB <cbb@cbb.com>' . "\r\n";
+
+		$message = '<html><body>';
+		
+		if($status != "Device Rejected - Awaiting Customer Offer Approval") { 
+			$message .= 'Thanks, you\'re order is now '.$status; 
+		} else { 
+			$message .= "Sorry you're device was rejected";
+			$message .= "Rejected Instructions:"; 
+			$message .= $rejected_message;  
+		}
+
+		$message .= "</body></html>";
+
+		mail($to, $subject, $message, $headers);
 	}
 }
 
