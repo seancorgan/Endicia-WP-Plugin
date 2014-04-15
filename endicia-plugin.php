@@ -472,7 +472,7 @@ class Endicia_Plugin {
 			  'post_status'   => 'publish',
 			  'post_author'   => 1, 
 			  'post_visibility'   => 'private', 
-			  'post_type' => 'Orders'
+			  'post_type' => 'Phone Tracking'
 			);
 
 			$post_id = wp_insert_post( $phone_tracking_post );
@@ -575,10 +575,10 @@ class Endicia_Plugin {
 	}
 
 	/**
-	* Register the the custom post type to store our Orders data
+	* Register the the custom post type to store our Phone Tracking data
 	*/
 	function sc_register_phone_tracking() {
-	    register_post_type( 'Orders', array(
+	    register_post_type( 'Phone Tracking', array(
 	        'public' => false,
 	        'publicly_queryable' => true,
 	        'show_ui' => true,
@@ -592,17 +592,17 @@ class Endicia_Plugin {
 	        'capability_type' => 'post',
 	        'capabilities' => array(),
 	        'labels' => array(
-	            'name' => __( 'Orders', 'Orders' ),
-	            'singular_name' => __( 'Orders', 'Orders' ),
-	            'add_new' => __( 'Add New Orders', 'Orders' ),
-	            'add_new_item' => __( 'Add New Orders', 'Orders' ),
-	            'edit_item' => __( 'Edit Orders', 'Orders' ),
-	            'new_item' => __( 'New Orders', 'Orders' ),
-	            'all_items' => __( 'All Orders', 'Orders' ),
-	            'view_item' => __( 'View Orders', 'Orders' ),
-	            'search_items' => __( 'Search Orders', 'Orders' ),
-	            'not_found' =>  __( 'No Orders found', 'Orders' ),
-	            'not_found_in_trash' => __( 'No Orders found in Trash', 'Orders' ),
+	            'name' => __( 'Orders', 'Phone Tracking' ),
+	            'singular_name' => __( 'Orders', 'Phone Tracking' ),
+	            'add_new' => __( 'Add New Orders', 'Phone Tracking' ),
+	            'add_new_item' => __( 'Add New Orders', 'Phone Tracking' ),
+	            'edit_item' => __( 'Edit Orders', 'Phone Tracking' ),
+	            'new_item' => __( 'New Orders', 'Phone Tracking' ),
+	            'all_items' => __( 'All Orders', 'Phone Tracking' ),
+	            'view_item' => __( 'View Orders', 'Phone Tracking' ),
+	            'search_items' => __( 'Search Orders', 'Phone Tracking' ),
+	            'not_found' =>  __( 'No Orders found', 'Phone Tracking' ),
+	            'not_found_in_trash' => __( 'No Orders found in Trash', 'Phone Tracking' ),
 	            'parent_item_colon' => '',
 	            'menu_name' => 'Orders'
 	        )
