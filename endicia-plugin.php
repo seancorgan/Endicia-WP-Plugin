@@ -431,7 +431,7 @@ class Endicia_Plugin {
 			echo json_encode(array('status' => 'error', 'message' => $e->getMessage())); 
 		}
 		
-		$redirect_link = get_permalink(138);
+		$redirect_link = get_permalink(138).'?id='.$post_id;
 
 		if(!empty($_POST['formData']['email'])) { 
 			$this->email_on_success($_POST['formData']['email'], $post_id);
@@ -487,7 +487,8 @@ class Endicia_Plugin {
 				add_post_meta( $post_id, 'zip', $this->FromPostalCode );
 				add_post_meta( $post_id, 'phone', $this->phone );
 				add_post_meta( $post_id, 'carrier', $this->carrier );
-				add_post_meta( $post_id, 'quote', $this->quote ); 
+				add_post_meta( $post_id, 'quote', $this->quote );
+				update_field('field_530126d9a8999', 'Device Not Received', $post_id); 
 
 			} else { 
 				throw new Exception("Problem adding post", 1);
@@ -592,19 +593,19 @@ class Endicia_Plugin {
 	        'capability_type' => 'post',
 	        'capabilities' => array(),
 	        'labels' => array(
-	            'name' => __( 'Phone Tracking', 'Phone Tracking' ),
-	            'singular_name' => __( 'Phone Tracking', 'Phone Tracking' ),
-	            'add_new' => __( 'Add New Phone Tracking', 'Phone Tracking' ),
-	            'add_new_item' => __( 'Add New Phone Tracking', 'Phone Tracking' ),
-	            'edit_item' => __( 'Edit Phone Tracking', 'Phone Tracking' ),
-	            'new_item' => __( 'New Phone Tracking', 'Phone Tracking' ),
-	            'all_items' => __( 'All Phone Tracking', 'Phone Tracking' ),
-	            'view_item' => __( 'View Phone Tracking', 'Phone Tracking' ),
-	            'search_items' => __( 'Search Phone Tracking', 'Phone Tracking' ),
-	            'not_found' =>  __( 'No Phone Tracking found', 'Phone Tracking' ),
-	            'not_found_in_trash' => __( 'No Phone Tracking found in Trash', 'Phone Tracking' ),
+	            'name' => __( 'Orders', 'Phone Tracking' ),
+	            'singular_name' => __( 'Orders', 'Phone Tracking' ),
+	            'add_new' => __( 'Add New Orders', 'Phone Tracking' ),
+	            'add_new_item' => __( 'Add New Orders', 'Phone Tracking' ),
+	            'edit_item' => __( 'Edit Orders', 'Phone Tracking' ),
+	            'new_item' => __( 'New Orders', 'Phone Tracking' ),
+	            'all_items' => __( 'All Orders', 'Phone Tracking' ),
+	            'view_item' => __( 'View Orders', 'Phone Tracking' ),
+	            'search_items' => __( 'Search Orders', 'Phone Tracking' ),
+	            'not_found' =>  __( 'No Orders found', 'Phone Tracking' ),
+	            'not_found_in_trash' => __( 'No Orders found in Trash', 'Phone Tracking' ),
 	            'parent_item_colon' => '',
-	            'menu_name' => 'Phone Tracking'
+	            'menu_name' => 'Orders'
 	        )
 	    ) );
 	}
