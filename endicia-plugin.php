@@ -70,7 +70,7 @@ class Endicia_Plugin {
 
 		add_action( 'wp_ajax_nopriv_endicia_post_form', array($this, 'endicia_post_form') );
 
-		add_action( 'save_post', array($this, 'save_phonetracking' ) );
+		add_action( 'wp_insert_post_data', array($this, 'save_phonetracking' ) );
 
 		add_action( 'init', array($this, 'phone_tracking_taxonomy') );
 
@@ -473,7 +473,7 @@ class Endicia_Plugin {
 		$filters = get_terms('status');  
 
 			echo "<select name='status' id='status' class='postform'>";
-			echo "<option value=''>Show All Status'</option>";
+			echo "<option value=''>Show Status</option>";
 			foreach ($filters as $term) { 
 				echo '<option value='. $term->slug, $_GET[$tax_slug] == $term->slug ? ' selected="selected"' : '','>' . $term->name .' (' . $term->count .')</option>'; }
 			}
@@ -508,7 +508,6 @@ class Endicia_Plugin {
 				//update_field('field_530126d9a8999', 'Device Not Received', $post_id);
 				wp_set_post_terms( $post_id, 17, 'status'); 
 		
-
 			} else { 
 				throw new Exception("Problem adding post", 1);
 			}
@@ -935,14 +934,37 @@ class Endicia_Plugin {
 	function save_phonetracking() { 
 		if ( 'phonetracking' != $_POST['post_type'] ) {
 	        return;
-	    } 
+	    } 	
 
-	    if(!empty($_POST['fields']['field_530126d9a8999'])) { 
-	    	$current_field = get_field('field_530126d9a8999', $_POST['post_ID']);
-	    	if($current_field != $_POST['fields']['field_530126d9a8999']) { 
-	    		 $this->send_status_update($_POST['fields']['field_533894e5e04f2'], $_POST['post_ID'], $_POST['fields']['field_530126d9a8999'], $_POST['fields']['field_53476d2d72037']); 
+	    // proposed terms 
+	    $proposed_terms = $_POST['tax_input']['status'];
+	    $current_terms_objs = get_the_terms($_POST['post_ID'], 'status'); 
+
+	    if(!empty($current_terms_objs)): 
+	    	foreach ($current_terms_objs as $obj) {
+	    		$current_terms[] = $obj->term_id; 
 	    	}
-	    }  
+	    endif; 
+
+	    if(($key = array_search(0, $proposed_terms)) !== false) {
+			unset($proposed_terms[$key]);
+		}
+
+		$proposed_terms = array_values($proposed_terms); 
+
+		if(($key = array_search(0, $current_terms)) !== false) {
+			unset($current_terms[$key]);
+		} 
+
+		$current_terms = array_values($current_terms); 
+	    $diff = array_diff($proposed_terms, $current_terms); 
+
+    	if(!empty($diff)) { 
+    		$status = get_term($proposed_terms[0], 'status'); 
+    		if(!empty($status)) { 
+    			$this->send_status_update($_POST['fields']['field_533894e5e04f2'], $_POST['post_ID'], $status->name, $_POST['fields']['field_53476d2d72037']);
+    		}
+    	} 
 	}
 
 	function send_status_update($email, $order_id, $status, $rejected_message){ 
