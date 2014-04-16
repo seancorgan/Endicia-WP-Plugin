@@ -71,6 +71,10 @@ class Endicia_Plugin {
 		add_action( 'wp_ajax_nopriv_endicia_post_form', array($this, 'endicia_post_form') );
 
 		add_action( 'save_post', array($this, 'save_phonetracking' ) );
+
+		add_action( 'init', array($this, 'phone_tracking_taxonomy') );
+
+		add_action( 'restrict_manage_posts', array($this, 'restrict_manage_posts' ) );		
 	}
 
 /**
@@ -82,7 +86,6 @@ class Endicia_Plugin {
 		 $new_columns['id'] = __('ID');
 		 $new_columns['title'] = "Name";
 		 $new_columns['date'] = "Date Created";
-		 $new_columns['status'] = __('Status');
 		 $new_columns['email'] = "Email or PayPal ID";
 		 $new_columns['shipping_option'] = "Shipping Option"; 
 		 $new_columns['payment_type'] = "Payment Type"; 
@@ -149,9 +152,6 @@ class Endicia_Plugin {
 	            echo get_post_meta( $post_id , 'phone' , true ); 
 	        break;
 
-	        case 'status' :
-	            the_field('status', $post_id); 
-	        break;
 
 	        case 'carrier' :
 	            echo get_post_meta( $post_id , 'carrier' , true ); 
@@ -463,6 +463,23 @@ class Endicia_Plugin {
 		mail($to, $subject, $message, $headers);
 	}
 
+	function restrict_manage_posts() {
+	global $typenow;
+    
+	$taxonomy = $typenow;
+  
+	
+	if( $_GET['post_type'] == "phonetracking" ){
+		$filters = get_terms('status');  
+
+			echo "<select name='status' id='status' class='postform'>";
+			echo "<option value=''>Show All Status'</option>";
+			foreach ($filters as $term) { 
+				echo '<option value='. $term->slug, $_GET[$tax_slug] == $term->slug ? ' selected="selected"' : '','>' . $term->name .' (' . $term->count .')</option>'; }
+			}
+			echo "</select>";
+	}
+
 	/**
 	 * Setups up post data info 
 	 */
@@ -488,7 +505,9 @@ class Endicia_Plugin {
 				add_post_meta( $post_id, 'phone', $this->phone );
 				add_post_meta( $post_id, 'carrier', $this->carrier );
 				add_post_meta( $post_id, 'quote', $this->quote );
-				update_field('field_530126d9a8999', 'Device Not Received', $post_id); 
+				//update_field('field_530126d9a8999', 'Device Not Received', $post_id);
+				wp_set_post_terms( $post_id, 17, 'status'); 
+		
 
 			} else { 
 				throw new Exception("Problem adding post", 1);
@@ -608,6 +627,36 @@ class Endicia_Plugin {
 	            'menu_name' => 'Orders'
 	        )
 	    ) );
+	}
+
+
+	function phone_tracking_taxonomy() { 
+		// Add new taxonomy, make it hierarchical (like categories)
+		$labels = array(
+			'name'              => _x( 'Status', 'Status' ),
+			'singular_name'     => _x( 'Status', 'taxonomy singular name' ),
+			'search_items'      => __( 'Search Status' ),
+			'all_items'         => __( 'All Status' ),
+			'parent_item'       => __( 'Parent Status' ),
+			'parent_item_colon' => __( 'Parent Status:' ),
+			'edit_item'         => __( 'Edit Status' ),
+			'update_item'       => __( 'Update Status' ),
+			'add_new_item'      => __( 'Add New Status' ),
+			'new_item_name'     => __( 'New Status Name' ),
+			'menu_name'         => __( 'Status' ),
+		);
+
+		$args = array(
+			'hierarchical'      => true,
+			'labels'            => $labels,
+			'show_ui'           => true,
+			'show_admin_column' => true,
+			'query_var'         => true,
+			'rewrite'           => array( 'slug' => 'status' ),
+		);
+
+		register_taxonomy( 'status', array( 'phonetracking' ), $args );
+
 	}
 	/**
 	 * Places Endicia form on page
